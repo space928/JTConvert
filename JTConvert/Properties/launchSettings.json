@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "JTConvert": {
+      "commandName": "Project",
+      "commandLineArgs": "-i \"C:\\Users\\Thoma\\OneDrive\\Projects\\NetAllied\\kr22r1610_2.jt\" -o \"C:\\Users\\Thoma\\OneDrive\\Projects\\NetAllied\\test.jt\""
+    }
+  }
+}
