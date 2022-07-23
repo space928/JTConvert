@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -207,6 +208,23 @@ namespace JTConvert.JTCodec
             m10, m11, m12, m13,
             m20, m21, m22, m23,
             m30, m31, m32, m33;
+
+        /// <summary>
+        /// Creates a new Mx4F64 out of an array of doubles without allocating new memory.
+        /// </summary>
+        /// <param name="vals"></param>
+        public Mx4F32(float[] vals)
+        {
+            this = MemoryMarshal.Cast<float, Mx4F32>(vals.AsSpan())[0];
+        }
+
+        public static readonly Mx4F64 Identity = new()
+        {
+            m00 = 1, m01 = 0, m02 = 0, m03 = 0,
+            m10 = 0, m11 = 1, m12 = 0, m13 = 0,
+            m20 = 0, m21 = 0, m22 = 1, m23 = 0,
+            m30 = 0, m31 = 0, m32 = 0, m33 = 1
+        };
     }
 
     public struct Mx4F64
@@ -215,6 +233,50 @@ namespace JTConvert.JTCodec
             m10, m11, m12, m13,
             m20, m21, m22, m23,
             m30, m31, m32, m33;
+
+        /// <summary>
+        /// Creates a new Mx4F64 out of an array of doubles without allocating new memory.
+        /// </summary>
+        /// <param name="vals"></param>
+        public Mx4F64(double[] vals)
+        {
+            this = MemoryMarshal.Cast<double, Mx4F64>(vals.AsSpan())[0];
+        }
+
+        public static readonly Mx4F64 Identity = new()
+        {
+            m00 = 1, m01 = 0, m02 = 0, m03 = 0,
+            m10 = 0, m11 = 1, m12 = 0, m13 = 0,
+            m20 = 0, m21 = 0, m22 = 1, m23 = 0,
+            m30 = 0, m31 = 0, m32 = 0, m33 = 1
+        };
+
+        public double this[int i]
+        {
+            get
+            {
+                return i switch
+                {
+                    0 => m00,
+                    1 => m01,
+                    2 => m02,
+                    3 => m03,
+                    4 => m10,
+                    5 => m11,
+                    6 => m12,
+                    7 => m13,
+                    8 => m20,
+                    9 => m21,
+                    10 => m22,
+                    11 => m23,
+                    12 => m30,
+                    13 => m31,
+                    14 => m32,
+                    15 => m33,
+                    _ => throw new IndexOutOfRangeException(),
+                };
+            }
+        }
     }
 
     public struct PlaneF32

@@ -151,6 +151,8 @@ namespace JTConvert.JTCodec
         /// range (0,1].
         /// </summary>
         public float areaFactor;
+        // If versionNumber != 1 && jtVersion < 10
+        public ulong vertexBindings;
     }
 
     public struct JTPointSetShapeNodeElement : IJTGraphElement
@@ -158,8 +160,8 @@ namespace JTConvert.JTCodec
         public JTLogicalElementHeader header;
         public JTVertexShapeData vertexShapeData;
         public byte versionNumber;
-        public byte areaFactor;
-        // If versionNumber == 1
+        public float areaFactor;
+        // If versionNumber != 1
         public ulong vertexBindings;
     }
 
@@ -275,6 +277,7 @@ namespace JTConvert.JTCodec
         /// specified by the <seealso cref="storedValuesMask"/>.
         /// </summary>
         public Mx4F64 matrix;
+        public JTBaseAttributeDataFieldsV2 attributeDataFieldsV2;
     }
 
     public struct JTPaletteMapAttributeElement : IJTGraphElement
@@ -486,10 +489,12 @@ namespace JTConvert.JTCodec
     {
         public JTBaseNodeData baseNodeData;
         public byte versionNumber;
+        // Only present in versions <10
+        public BBoxF32 reservedField;
         /// <summary>
         /// Untransformed axis aligned bounding box of the geometry contained within the shape node.
         /// </summary>
-        public BBoxF32 untrasformedBBox;
+        public BBoxF32 untransformedBBox;
         /// <summary>
         /// Total surface area of all the children of this node.
         /// </summary>
@@ -518,11 +523,21 @@ namespace JTConvert.JTCodec
         /// Stores a collection of of normal, texcoord, and colour binding information in a single ulong.
         /// </summary>
         public ulong vertexBinding;
+        public JTQuantizationParameters quantizationParameters;
+        public ulong vertexBinding2;
     }
 
     public struct JTPrimitiveSetQuantizationParameters
     {
         public byte bitsPerVertex;
+        public byte bitsPerColour;
+    }
+
+    public struct JTQuantizationParameters
+    {
+        public byte bitsPerVertex;
+        public byte normalBitsFactor;
+        public byte bitsPerTextureCoord;
         public byte bitsPerColour;
     }
 

@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Joveler.Compression.ZLib;
 using Joveler.Compression.XZ;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace JTConvert.JTCodec
 {
@@ -71,6 +72,7 @@ namespace JTConvert.JTCodec
             var toc = new Dictionary<GUID, JTSegment>(tocCount * 2);
             var segments = new JTTOCEntry[tocCount];
 
+            //TODO: Parallel?
             for (int i = 0; i < tocCount; i++)
             {
                 JTTOCEntry segment = LoadTOCEntry(reader, jtVersion);
@@ -83,28 +85,57 @@ namespace JTConvert.JTCodec
             Logger.Log("Loading segment data...");
             stopwatch.Restart();
 
+            // Just for logging failures
+            ConcurrentDictionary<JTSegmentType, int> unimplementedSegments = new();
+
             // Deffer segment loading until after TOC reading to reduce file seeking.
             if(settings.parallel)
             {
                 // TODO: Profile and add partitioning if needed.
                 // TODO: Add task local state for MemoryStream/BinaryJTReader
                 // https://docs.microsoft.com/en-us/previous-versions/msp-n-p/ff963552(v=pandp.10)#using-task-local-state-in-a-loop-body
-                Parallel.ForEach(segments, (segment) =>
+               Parallel.ForEach(Partitioner.Create(segments),
+                    new ParallelOptions(),
+                    () =>
+                    {
+                        var ms = new MemoryStream(loadedFile);
+                        BinaryJTReader nreader = new(ms, reader.BigEndian);
+                        return nreader;
+                    },
+                    (segment, loopState, nreader) =>
                 {
-                    using var ms = new MemoryStream(loadedFile);
-                    using var nreader = new BinaryJTReader(ms, reader.BigEndian);
-                    toc[segment.guid] = LoadSegment(nreader, segment, jtVersion);
-                });
+                    var seg = LoadSegment(nreader, segment, jtVersion);
+                    toc[segment.guid] = seg;
+                    if (seg == null)
+                    {
+                        var typ = (JTSegmentType)(segment.attributes >> 24);
+                        unimplementedSegments.AddOrUpdate(typ, 1, (k, v) => v + 1);
+                    }
+                    return nreader;
+                },
+                (nreader) => nreader.Dispose());
             }
             else
             {
                 foreach(var segment in segments)
                 { 
-                    toc[segment.guid] = LoadSegment(reader, segment, jtVersion);
+                    var seg = LoadSegment(reader, segment, jtVersion); ;
+                    toc[segment.guid] = seg;
+                    if (seg == null)
+                    {
+                        var typ = (JTSegmentType)(segment.attributes >> 24);
+                        unimplementedSegments.AddOrUpdate(typ, 1, (k, v) => v + 1);
+                    }
                 }
             }
-            
-            Logger.Log($"Loaded all segments in {stopwatch.Elapsed.TotalMilliseconds} ms!");
+
+            // Log errros loading segments
+            foreach (var seg in unimplementedSegments)
+            {
+                Logger.Log($"Decoder not yet implemented for {seg.Value} segment(s) with type: {seg.Key}", Logger.VerbosityLevel.WARN);
+            }
+
+            Logger.Log($"Loaded {segments.Length} segments in {stopwatch.Elapsed.TotalMilliseconds} ms!");
             stopwatch.Restart();
 
             reader.BaseStream.Seek(lastPos, SeekOrigin.Begin);
@@ -136,7 +167,9 @@ namespace JTConvert.JTCodec
         {
             reader.BaseStream.Seek((long)jTTOCEntry.offset, SeekOrigin.Begin);
             JTSegment segment;
-            switch ((JTSegmentType)(jTTOCEntry.attributes >> 24))
+
+            var segmentType = (JTSegmentType)(jTTOCEntry.attributes >> 24);
+            switch (segmentType)
             {
                 case JTSegmentType.LogicalSceneGraph:
                     segment = JTLSGSegment.LoadSegment(ref reader, jtVersion);
@@ -154,8 +187,14 @@ namespace JTConvert.JTCodec
                 case JTSegmentType.ShapeLOD9:
                     segment = null;
                     break;
+                case JTSegmentType.MetaData:
+                case JTSegmentType.PMIData:
+                    // For now we just return null to reduce the number of errors logged
+                    segment = null;
+                    break;
                 default:
-                    Logger.Log($"Decoder not yet implemented for {jTTOCEntry.guid} with type: {(JTSegmentType)(jTTOCEntry.attributes >> 24)}", Logger.VerbosityLevel.WARN);
+                    var typ = (JTSegmentType)(jTTOCEntry.attributes >> 24);
+                    Logger.Debug($"Decoder not yet implemented for segment {jTTOCEntry.guid} with type: {typ}");
                     segment = null;
                     break;
             }
