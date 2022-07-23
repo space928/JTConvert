@@ -3,8 +3,9 @@
     public class JTLSGSegment : JTSegment
     {
         public override bool Compressable => true;
-        //TODO: ADG of scene graph
-        public IJTGraphElement[] graphElements;
+        public IJTGraphElement[] GraphElements { get => graphElements; set => graphElements = value; }
+
+        private IJTGraphElement[] graphElements;
 
         internal static JTSegment LoadSegment(ref BinaryJTReader reader, int version)
         {
@@ -33,12 +34,16 @@
                 if (!JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse.ContainsKey(elemHeader.objectTypeID))
                 {
                     Logger.Log($"Unrecognised element encountered! Type id: {elemHeader.objectTypeID} position: {reader.BaseStream.Position} bytes.", Logger.VerbosityLevel.WARN);
-                    continue;
+                    Logger.Log("The rest of the scene graph will not be decoded!", Logger.VerbosityLevel.ERROR);
+                    break;
                 }
-                Logger.Log($"Loading {JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]}...");
+                Logger.Log($"Loading {JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]}...", Logger.VerbosityLevel.DEBUG);
                 IJTGraphElement element = (IJTGraphElement)Activator.CreateInstance(JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]);
                 switch (element)
                 {
+                    case JTNullElement _:
+                        break;
+
                     case JTBaseNodeElement e:
                         e.header = elemHeader;
                         e.baseNodeData = LoadBaseNodeData(reader, version);
@@ -53,11 +58,11 @@
                         element = e;
                         break;
 
-                    case JTSwitchNodeElement e:
+                    case JTInstanceNodeElement e:
                         e.header = elemHeader;
-                        e.groupNodeData = LoadGroupNodeData(reader, version);
+                        e.baseNodeData = LoadBaseNodeData(reader, version);
                         e.versionNumber = reader.ReadVersion(version);
-                        e.selectedChild = reader.ReadUInt32();
+                        e.childNodeObjectID = reader.ReadInt32();
 
                         element = e;
                         break;
@@ -94,6 +99,61 @@
                         element = e;
                         break;
 
+                    case JTLODNodeElement e:
+                        e.header = elemHeader;
+                        e.lodNodeData = LoadLodData(reader, version);
+
+                        element = e;
+                        break;
+
+                    case JTRangeLODNodeElement e:
+                        e.header = elemHeader;
+                        e.lodNodeData = LoadLodData(reader, version);
+                        e.versionNumber = reader.ReadVersion(version);
+                        e.rangeLimits = reader.ReadVecF32();
+                        e.centre = reader.ReadCoordF32();
+
+                        element = e;
+                        break;
+
+                    case JTSwitchNodeElement e:
+                        e.header = elemHeader;
+                        e.groupNodeData = LoadGroupNodeData(reader, version);
+                        e.versionNumber = reader.ReadVersion(version);
+                        e.selectedChild = reader.ReadUInt32();
+
+                        element = e;
+                        break;
+
+                    case JTTriStripSetShapeNodeElement e:
+                        e.header = elemHeader;
+                        e.vertexShapeData = LoadVertexShapeData(reader, version);
+
+                        element = e;
+                        break;
+
+                    case JTPolylineSetShapeNodeElement e:
+                        e.header = elemHeader;
+                        e.vertexShapeData = LoadVertexShapeData(reader, version);
+                        e.versionNumber = reader.ReadVersion(version);
+                        e.areaFactor = reader.ReadSingle();
+                        if (version < 10 && e.versionNumber != 1)
+                            e.vertexBindings = reader.ReadUInt64();
+
+                        element = e;
+                        break;
+
+                    case JTPointSetShapeNodeElement e:
+                        e.header = elemHeader;
+                        e.vertexShapeData = LoadVertexShapeData(reader, version);
+                        e.versionNumber = reader.ReadVersion(version);
+                        e.areaFactor = reader.ReadSingle();
+                        if(e.versionNumber != 1)
+                            e.vertexBindings = reader.ReadUInt64();
+
+                        element = e;
+                        break;
+
                     case JTMaterialAttributeElement e:
                         e.header = elemHeader;
                         e.attributeData = LoadAttributeData(reader, version);
@@ -104,10 +164,24 @@
                         e.specular = reader.ReadRGBA();
                         e.emission = reader.ReadRGBA();
                         e.shininess = reader.ReadSingle();
-                        if(e.version >= 2)
+                        if (e.version >= 2)
                             e.reflectivity = reader.ReadSingle();
-                        if(version >= 10)
+                        if (version >= 10)
                             e.bumpiness = reader.ReadSingle();
+                        e.attributeDataFieldsV2 = LoadAttributeDataV2(reader, e.attributeData.version);
+
+                        element = e;
+                        break;
+
+                    case JTGeometricTransformAttributeElement e:
+                        e.header = elemHeader;
+                        e.attributeData = LoadAttributeData(reader, version);
+                        e.version = (sbyte)reader.ReadVersion(version);
+                        e.storedValuesMask = reader.ReadUInt16();
+                        double[] mat = new double[16];
+                        for(int i = 0; i < 16; i++)
+                            mat[i] = ((e.storedValuesMask>>i)&1)==1? reader.ReadDouble() : Mx4F64.Identity[i];
+                        e.matrix = new(mat);
                         e.attributeDataFieldsV2 = LoadAttributeDataV2(reader, e.attributeData.version);
 
                         element = e;
@@ -120,12 +194,65 @@
                         break;
                 }
 
+                lastGuid = elemHeader.objectTypeID;
                 graphElements.Add(element);
             }
 
             lsgSeg.graphElements = graphElements.ToArray();
 
             return lsgSeg;
+        }
+
+        private static JTVertexShapeData LoadVertexShapeData(BinaryJTReader reader, int version)
+        {
+            var ret = new JTVertexShapeData();
+            ret.shapeData = LoadBaseShapeData(reader, version);
+            ret.versionNumber = reader.ReadVersion(version);
+            ret.vertexBinding = reader.ReadUInt64();
+            if (version < 10)
+            {
+                ret.quantizationParameters = LoadQuantizationParameters(reader);
+                if(ret.versionNumber > 1)
+                    ret.vertexBinding = reader.ReadUInt64();
+            }
+
+            return ret;
+        }
+
+        private static JTQuantizationParameters LoadQuantizationParameters(BinaryJTReader reader) => new()
+        {
+            bitsPerVertex = reader.ReadByte(),
+            normalBitsFactor = reader.ReadByte(),
+            bitsPerTextureCoord = reader.ReadByte(),
+            bitsPerColour = reader.ReadByte(),
+        };
+
+        private static JTBaseShapeData LoadBaseShapeData(BinaryJTReader reader, int version) => new()
+        {
+            baseNodeData = LoadBaseNodeData(reader, version),
+            versionNumber = reader.ReadVersion(version),
+            reservedField = (version < 10)?reader.ReadBBoxF32():new(),
+            untransformedBBox = reader.ReadBBoxF32(),
+            area = reader.ReadSingle(),
+            vertexCountRange = reader.ReadCountRange(),
+            nodeCountRange = reader.ReadCountRange(),
+            polygonCountRange = reader.ReadCountRange(),
+            size = reader.ReadUInt32(),
+            compressionLevel = reader.ReadSingle()
+        };
+
+        private static JTLODNodeData LoadLodData(BinaryJTReader reader, int version)
+        {
+            JTLODNodeData ret = new();
+            ret.groupNodeData = LoadGroupNodeData(reader, version);
+            ret.versionNumber = reader.ReadVersion(version);
+            if(version < 10)
+            {
+                reader.ReadVecF32();
+                reader.Skip(4);
+            }
+
+            return ret;
         }
 
         private static JTBaseAttributeDataFieldsV2 LoadAttributeDataV2(BinaryJTReader reader, int attributeVersion)

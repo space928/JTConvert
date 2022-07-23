@@ -47,6 +47,9 @@ namespace JTConvert
                     loader.LoadFile(settings);
                     break;
             }
+
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
 
         private static JTConvertSettings ParseArgs(string[] args)
