@@ -219,82 +219,58 @@ namespace JTConvert.JTCodec
             a = ReadSingle(),
         };
 
-        public VecF32 ReadVecF32()
+        public float[] ReadVecF32()
         {
             int count = ReadInt32();
             float[] data = new float[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadSingle();
-            return new VecF32()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
-        public VecF64 ReadVecF64()
+        public double[] ReadVecF64()
         {
             int count = ReadInt32();
             double[] data = new double[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadDouble();
-            return new VecF64()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
-        public VecI16 ReadVecI16()
+        public short[] ReadVecI16()
         {
             int count = ReadInt32();
             short[] data = new short[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadInt16();
-            return new VecI16()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
-        public VecU16 ReadVecU16()
+        public ushort[] ReadVecU16()
         {
             int count = ReadInt32();
             ushort[] data = new ushort[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadUInt16();
-            return new VecU16()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
-        public VecI32 ReadVecI32()
+        public int[] ReadVecI32()
         {
             int count = ReadInt32();
             int[] data = new int[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadInt32();
-            return new VecI32()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
-        public VecU32 ReadVecU32()
+        public uint[] ReadVecU32()
         {
             int count = ReadInt32();
             uint[] data = new uint[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadUInt32();
-            return new VecU32()
-            {
-                count = count,
-                data = data
-            };
+            return data;
         }
 
         public JTCountRange ReadCountRange() => new()

@@ -304,41 +304,5 @@ namespace JTConvert.JTCodec
         public int count;
         public char[] chars;
     }
-
-    public struct VecF32
-    {
-        public int count;
-        public float[] data;
-    }
-
-    public struct VecF64
-    {
-        public int count;
-        public double[] data;
-    }
-
-    public struct VecI16
-    {
-        public int count;
-        public short[] data;
-    }
-
-    public struct VecU16
-    {
-        public int count;
-        public ushort[] data;
-    }
-
-    public struct VecI32
-    {
-        public int count;
-        public int[] data;
-    }
-
-    public struct VecU32
-    {
-        public int count;
-        public uint[] data;
-    }
     #endregion
 }

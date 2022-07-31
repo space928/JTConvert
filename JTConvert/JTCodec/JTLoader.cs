@@ -185,7 +185,7 @@ namespace JTConvert.JTCodec
                 case JTSegmentType.ShapeLOD7:
                 case JTSegmentType.ShapeLOD8:
                 case JTSegmentType.ShapeLOD9:
-                    segment = null;
+                    segment = JTShapeLODSegment.LoadSegment(ref reader, jtVersion);
                     break;
                 case JTSegmentType.MetaData:
                 case JTSegmentType.PMIData:

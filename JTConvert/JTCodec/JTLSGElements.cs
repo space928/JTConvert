@@ -96,7 +96,7 @@ namespace JTConvert.JTCodec
         public JTLogicalElementHeader header;
         public JTLODNodeData lodNodeData;
         public byte versionNumber;
-        public VecF32 rangeLimits;
+        public float[] rangeLimits;
         public CoordF32 centre;
     }
 
@@ -285,7 +285,7 @@ namespace JTConvert.JTCodec
         public JTLogicalElementHeader header;
         public JTBaseAttributeData attributeData;
         public sbyte version;
-        public VecU32 paletteMapVector;
+        public uint[] paletteMapVector;
         public JTBaseAttributeDataFieldsV2 attributeDataV2;
     }
 

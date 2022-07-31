@@ -8,12 +8,11 @@ namespace JTConvert.JTCodec
 {
     public class JTShapeLODSegment : JTSegment
     {
-        public override bool Compressable => true;
+        public override bool Compressable => false;
         public IJTShapeLODElement shapeLODElement;
 
         internal static JTSegment LoadSegment(ref BinaryJTReader reader, int version)
         {
-            Logger.Log($"Loading shape segment...");
             // Segment header
             JTShapeLODSegment shapeSeg = new();
             shapeSeg.segmentID = reader.ReadGUID();
@@ -30,16 +29,91 @@ namespace JTConvert.JTCodec
                 return null;
             }
             Logger.Log($"Loading {JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]}...", Logger.VerbosityLevel.DEBUG);
-            IJTGraphElement element = (IJTGraphElement)Activator.CreateInstance(JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]);
+            IJTShapeLODElement element = (IJTShapeLODElement)Activator.CreateInstance(JTObjectTypeIdentifiers.ObjectTypeIdentifiersReverse[elemHeader.objectTypeID]);
             switch (element)
             {
-                case JTTriStripSetShapeNodeElement
+                case JTNullShapeLODElement:
+                    break;
+                case JTTriStripSetShapeLODElement e:
+                    e.header = elemHeader;
+                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version);
+                    e.version = reader.ReadVersion(version);
+
+                    element = e;
+                    break;
+
+                case JTPolylineSetShapeLODElement e:
+                    e.header = elemHeader;
+                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version);
+                    e.version = reader.ReadVersion(version);
+
+                    element = e;
+                    break;
+
+                case JTPointSetShapeLODElement e:
+                    e.header = elemHeader;
+                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version);
+                    e.version = reader.ReadVersion(version);
+
+                    element = e;
+                    break;
+
+                case JTPolygonSetShapeLODElement e:
+                    e.header = elemHeader;
+                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version);
+                    e.version = reader.ReadVersion(version);
+
+                    element = e;
+                    break;
+                default:
+                    Logger.Log($"Shape has invalid element type: {element.GetType()}!", Logger.VerbosityLevel.WARN);
+                    break;
             }
 
             return shapeSeg;
         }
 
-        private static JTShapeLODElement LoadShapeLODElement(BinaryJTReader reader, int version)
+        private static JTVertexShapeLODData LoadVertexShapeLODData(BinaryJTReader reader, int version, bool isTriStrip = false)
+        {
+            JTVertexShapeLODData ret = new();
+
+            ret.baseData = new()
+            {
+                version = reader.ReadVersion(version),
+            };
+            ret.version = (sbyte)reader.ReadVersion(version);
+            ret.vertexBindings = (JTVertexBindings)reader.ReadUInt64();
+            if (isTriStrip)
+                ret.meshDataTopologicallyCompressed = LoadTopoMeshTopologicallyCompressed(reader, version);
+            else
+                ret.meshDataCompressed = LoadTopoMeshCompressed(reader, version);
+
+            return ret;
+        }
+
+        private static JTTopoMeshCompressedLODData LoadTopoMeshCompressed(BinaryJTReader reader, int version)
+        {
+            JTTopoMeshCompressedLODData ret = new();
+            ret.meshLODData = new()
+            {
+                version = reader.ReadVersion(version),
+                vertexRecordsObjectID = reader.ReadUInt32()
+            };
+            ret.version = reader.ReadVersion(version);
+
+            // Load data
+            JTTopoMeshCompressedRepData data = new();
+            data.numberOfFaceGroupListIndices = reader.ReadUInt32();
+            data.numberOfPrimitiveListIndices = reader.ReadUInt32();
+            data.numberOfVertexListIndices = reader.ReadUInt32();
+            //data.faceGroupListIndices = reader.ReadVecI32();
+
+            ret.data = data;
+
+            return ret;
+        }
+
+        private static JTTopoMeshTopologicallyCompressedLODData LoadTopoMeshTopologicallyCompressed(BinaryJTReader reader, int version)
         {
             throw new NotImplementedException();
         }
