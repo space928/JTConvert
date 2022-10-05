@@ -20,7 +20,7 @@ namespace JTConvert.JTCodec.JTCompression
         /// <summary>
         /// How many bits are available in the shift register. Never >= 8.
         /// </summary>
-        private byte available = 0;
+        private byte available;
 
         /// <summary>
         /// Absolute position in bits in the stream.
@@ -47,6 +47,15 @@ namespace JTConvert.JTCodec.JTCompression
         /// <returns></returns>
         public byte ReadBits(byte bits)
         {
+#if DEBUG
+            if (bits > 8)
+                throw new ArgumentException("ReadBits() Tried to read more than 8 bits! Attempted to read " + bits + " bits!");
+#endif
+
+            // Clear any previous output bits from the shift register
+            shiftRegister &= 0xff;
+
+            // Refill if needed
             if (bits > available)
             {
                 shiftRegister <<= available;
@@ -59,6 +68,41 @@ namespace JTConvert.JTCodec.JTCompression
             available -= bits;
 
             return (byte)(shiftRegister>>8);
+        }
+
+        /// <summary>
+        /// Reads unaligned bits from the stream into a byte.
+        /// Optimized to read up to 4 bytes at a time into an int.
+        /// </summary>
+        /// <param name="bits"></param>
+        /// <returns></returns>
+        public int ReadIntBits(byte bits)
+        {
+#if DEBUG
+            if (bits > 32)
+                throw new ArgumentException("ReadIntBits() Tried to read more than 32 bits! Attempted to read " + bits + " bits!");
+#endif
+            if (bits <= 8)
+                return ReadBits(bits);
+
+            // Read any full bytes
+            int ret = 0;
+            do
+            {
+                ret <<= 8;
+                ret |= ReadByte();
+                bits -= 8;
+            } while (bits > 0);
+
+            // Get the last few bits if needed
+            if (bits != 0)
+            {
+                bits += 8;
+                ret <<= bits;
+                ret |= ReadBits(bits);
+            }
+
+            return ret;
         }
 
         public override int Read() => throw new NotImplementedException();

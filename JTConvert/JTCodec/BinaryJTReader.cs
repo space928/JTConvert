@@ -16,6 +16,7 @@ namespace JTConvert.JTCodec
     public class BinaryJTReader : BinaryReader
     {
         private bool bigEndian;
+        // TODO: Buffer entire pages (4096 bytes) of data at once for efficiency.
         private byte[] buffer = new byte[8];
         private readonly XZDecompressOptions xzDecompressOptions = new();
         private readonly ZLibDecompressOptions zLibDecompressOptions = new();
@@ -264,9 +265,25 @@ namespace JTConvert.JTCodec
             return data;
         }
 
+        public int[] ReadVecI32(int count)
+        {
+            int[] data = new int[count];
+            for (int i = 0; i < count; i++)
+                data[i] = ReadInt32();
+            return data;
+        }
+
         public uint[] ReadVecU32()
         {
             int count = ReadInt32();
+            uint[] data = new uint[count];
+            for (int i = 0; i < count; i++)
+                data[i] = ReadUInt32();
+            return data;
+        }
+
+        public uint[] ReadVecU32(int count)
+        {
             uint[] data = new uint[count];
             for (int i = 0; i < count; i++)
                 data[i] = ReadUInt32();

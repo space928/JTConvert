@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JTConvert.JTCodec.JTCompression;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -36,7 +37,7 @@ namespace JTConvert.JTCodec
                     break;
                 case JTTriStripSetShapeLODElement e:
                     e.header = elemHeader;
-                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version);
+                    e.vertexShapeLODData = LoadVertexShapeLODData(reader, version, true);
                     e.version = reader.ReadVersion(version);
 
                     element = e;
@@ -70,6 +71,8 @@ namespace JTConvert.JTCodec
                     break;
             }
 
+            shapeSeg.shapeLODElement = element;
+
             return shapeSeg;
         }
 
@@ -81,8 +84,8 @@ namespace JTConvert.JTCodec
             {
                 version = reader.ReadVersion(version),
             };
-            ret.version = (sbyte)reader.ReadVersion(version);
-            ret.vertexBindings = (JTVertexBindings)reader.ReadUInt64();
+            ret.version = (sbyte) reader.ReadVersion(version);
+            ret.vertexBindings = (JTVertexBindings) reader.ReadUInt64();
             if (isTriStrip)
                 ret.meshDataTopologicallyCompressed = LoadTopoMeshTopologicallyCompressed(reader, version);
             else
@@ -107,15 +110,31 @@ namespace JTConvert.JTCodec
             data.numberOfPrimitiveListIndices = reader.ReadUInt32();
             data.numberOfVertexListIndices = reader.ReadUInt32();
             //data.faceGroupListIndices = reader.ReadVecI32();
+            //throw new NotImplementedException();
 
             ret.data = data;
 
             return ret;
         }
 
-        private static JTTopoMeshTopologicallyCompressedLODData LoadTopoMeshTopologicallyCompressed(BinaryJTReader reader, int version)
+        private static JTTopoMeshTopologicallyCompressedLODData LoadTopoMeshTopologicallyCompressed(BinaryJTReader reader, int jtVersion)
         {
-            throw new NotImplementedException();
+            JTTopoMeshTopologicallyCompressedLODData ret = new();
+            ret.meshLODData = new()
+            {
+                version = reader.ReadVersion(jtVersion),
+                vertexRecordsObjectID = reader.ReadUInt32()
+            };
+            ret.version = reader.ReadVersion(jtVersion);
+            ret.data.faceDegreesA = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesB = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesC = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesD = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesE = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesF = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesG = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            //ret.data.faceDegreesH = JTCompressedDataPacketCodec.ReadIntCDP(reader, jtVersion, false);
+            return ret;
         }
     }
 }
